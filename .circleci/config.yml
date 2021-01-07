@@ -1,33 +1,41 @@
-version: 2 #user circleci 2.0
+version: # Orb 'circleci/maven@0.0.12' resolved to 'circleci/maven@0.0.12'
+    version: 2
+    jobs:
+        maven/test:
+            docker:
+                - image: circleci/openjdk:11-jdk-node
+            steps:
+                - checkout
+                - run:
+                      name: Generate Cache Checksum
+                      command: find . -name 'pom.xml' | sort | xargs cat > /tmp/maven_cache_seed
+                - restore_cache:
+                      key: maven-{{ checksum "/tmp/maven_cache_seed" }}
+                - run:
+                      name: Install Dependencies
+                      command: mvn dependency:go-offline --settings 'pom.xml'
+                - run:
+                      name: Run Tests
+                      command: mvn verify --settings 'pom.xml'
+                - save_cache:
+                      paths:
+                          - ~/.m2
+                      key: maven-{{ checksum "/tmp/maven_cache_seed" }}
+                - store_test_results:
+                      path: target/surefire-reports
+    workflows:
+        maven_test:
+            jobs:
+                - maven/test
+        version: 2
 
-    jobs: #a collection of steps
-        build: #runsnot using Workflows must have a 'build' job as entry point
-
-        working-directory: ~/circleci-demo-java-spring
-
-        docker: circleci/openjdk:11-stretch
-
-        steps: #a collection of executable commands
-            -checkout: #check out source code to working directory
-
-            -restore chache: #restore the saved cache after the first run of if 'pom.xml' has changed
-                            #read about caching dependencies: https://circleci.com/docs/2.0/caching/
-                        key: circleci-demo-java-spring-{{checksum "pom.xml"}}
-
-            -run: mvn dependency:go-offline #gets the project dependencies
-
-            -save_cache: #save the project dependencies
-                paths:
-                    - ~/.m2
-                key: circleci-demo-java-spring-{{checksum "pom.xml"}}
-
-            run: mvn package #run the actual tests
-
-            -store_test_results: #uploads the test metadata from the 'target/surefire-reports' directory so that it can show
-             #upload test results for display in test summary: https://circleci.com/docs/2.0/collect-test-data/
-            path: target/surefire-reports
-
-            -store-artifacts: #store the uberjar as an artifact
-                #upload test summary for display in Artifacts: https://circleci.com/docs/2.0/artifacts/
-                path:target/demo-java-spring-0.0.1-SNAPSHOT.jar
-                #see https://circleci.com/docs/2.0/deployment-integration/ for deploy examples
+    # Original config.yml file:
+    # version: 2.1
+    #
+    # orbs:
+    #   maven: circleci/maven@0.0.12
+    #
+    # workflows:
+    #   maven_test:
+    #     jobs:
+    #       - maven/test # checkout, build, test, and upload test results
