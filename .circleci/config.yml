@@ -1,34 +1,30 @@
 version: # Orb 'circleci/maven@0.0.12' resolved to 'circleci/maven@0.0.12'
     version: 2
     jobs:
-        maven/test:
+        build:
             docker:
-                - image: circleci/openjdk:11-jdk-node
+                - image: circleci/openjdk:11-jdk
+                working_directory: ~/repo
+
+                environment:
+                  MAVEN_OPTS: -Xmx3200m
             steps:
                 - checkout
-                - run:
-                      name: Generate Cache Checksum
-                      command: find . -name 'pom.xml' | sort | xargs cat > /tmp/maven_cache_seed
-                - restore_cache:
-                      key: maven-{{ checksum "/tmp/maven_cache_seed" }}
-                - run:
-                      name: Install Dependencies
-                      command: mvn dependency:go-offline --settings 'pom.xml'
-                - run:
-                      name: Run Tests
-                      command: mvn verify --settings 'pom.xml'
+
+                - restore_cache: #download and cache dependencies
+                      keys: v1-dependencies-{{ checksum "pom.xml" }}
+                      # fallback to using the latest cache if no exact match is found
+                      -v1-dependencies-
+
+                -run: mvn install -DskipTests
+
+                - run: mvn depencendency:go-offline
                 - save_cache:
                       paths:
                           - ~/.m2
-                      key: maven-{{ checksum "/tmp/maven_cache_seed" }}
-                - store_test_results:
-                      path: target/surefire-reports
-    workflows:
-        maven_test:
-            jobs:
-                - maven/test
-        version: 2
+                      key: maven-{{ checksum "pom.xml" }}
 
+  -run: mvn integration-test
     # Original config.yml file:
     # version: 2.1
     #
